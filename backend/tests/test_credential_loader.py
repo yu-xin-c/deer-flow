@@ -248,6 +248,46 @@ def test_load_claude_code_credential_falls_back_to_default_file_when_override_is
     assert cred.source == "claude-cli-file"
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        None,
+        [],
+        {"claudeAiOauth": None},
+        {"claudeAiOauth": "sk-ant-oat01-raw"},
+        {"claudeAiOauth": []},
+        {"claudeAiOauth": 5},
+    ],
+)
+def test_load_claude_code_credential_falls_back_when_override_has_invalid_shape(tmp_path, monkeypatch, payload):
+    _clear_claude_code_env(monkeypatch)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    override_path = tmp_path / "claude-credentials.json"
+    override_path.write_text(json.dumps(payload))
+    monkeypatch.setenv("CLAUDE_CODE_CREDENTIALS_PATH", str(override_path))
+
+    default_path = tmp_path / ".claude" / ".credentials.json"
+    default_path.parent.mkdir()
+    default_path.write_text(
+        json.dumps(
+            {
+                "claudeAiOauth": {
+                    "accessToken": "sk-ant-oat01-default",
+                    "refreshToken": "sk-ant-ort01-default",
+                    "expiresAt": 4_102_444_800_000,
+                }
+            }
+        )
+    )
+
+    cred = load_claude_code_credential()
+
+    assert cred is not None
+    assert cred.access_token == "sk-ant-oat01-default"
+    assert cred.source == "claude-cli-file"
+
+
 def test_load_codex_cli_credential_supports_nested_tokens_shape(tmp_path, monkeypatch):
     auth_path = tmp_path / "auth.json"
     auth_path.write_text(

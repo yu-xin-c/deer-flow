@@ -92,10 +92,15 @@ def _load_json_file(path: Path, label: str) -> dict[str, Any] | None:
         return None
 
     try:
-        return json.loads(path.read_text())
+        data = json.loads(path.read_text())
     except (json.JSONDecodeError, OSError) as e:
         logger.warning(f"Failed to read {label}: {e}")
         return None
+
+    if not isinstance(data, dict):
+        logger.warning(f"{label} must contain a JSON object: {path}")
+        return None
+    return data
 
 
 def _read_secret_from_file_descriptor(env_var: str) -> str | None:
@@ -149,6 +154,9 @@ def _iter_claude_code_credential_paths() -> list[Path]:
 
 def _extract_claude_code_credential(data: dict[str, Any], source: str) -> ClaudeCodeCredential | None:
     oauth = data.get("claudeAiOauth", {})
+    if not isinstance(oauth, dict):
+        logger.debug("Claude Code credentials container is not an object")
+        return None
     access_token = oauth.get("accessToken", "")
     if not access_token:
         logger.debug("Claude Code credentials container exists but no accessToken found")
